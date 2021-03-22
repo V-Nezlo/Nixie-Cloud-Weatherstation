@@ -19,20 +19,23 @@ char wifi_con_status;
 
 GTimer data_request(MS,10000);//Частота запросов для данных
 GTimer data_send(MS,20000); //Частота отправления данных
-GTimer led_status_update(MS,1000); //Частота для светодиодов
-GTimer wifi_con_update(MS,120000);
+GTimer led_status_update(MS,1000); //Частота обновления для статусного светодиода
+GTimer led_error_update(MS,10000); //Частота обновления для светодиода ошибки
+GTimer wifi_con_update(MS,130000);
 
 void update_led(void){
     if (led_status_update.isReady()){
-        errorflag = 0;
         if (workflag==0) workflag = 1;
         else workflag = 0;
+    }
+    if (led_error_update.isReady()){
+        errorflag = 0;
     }
 }
 
 void check_connection(void){
-    delay(200);
-    Serial.print("AT+CWJAP?");
+    data_send.stop();
+    Serial.println("AT+CWJAP?");
     if (Serial.find("No AP")){
         wifi_con_status = 0;
         wififlag = 0;
@@ -41,15 +44,7 @@ void check_connection(void){
         wifi_con_status = 1;
         wififlag = 1;
     }
-
-}
-
-void check_connection_starter(void){
-    if (wifi_con_update.isReady()){
-        data_send.stop();
-        check_connection();
-        data_send.resume();
-    }
+    data_send.resume();
 }
 
 void set_indicators(){
@@ -59,10 +54,10 @@ void set_indicators(){
 }
 
 void wait_char(char answer[]){
-    int safe_counter;
+    volatile int safe_counter;
     while(!(Serial.find(answer))){
 	    safe_counter++;
-	    if (safe_counter>2){
+	    if (safe_counter>5){
 		errorflag = 1;
 		return;
 		}
@@ -71,7 +66,7 @@ delay(50);
 }
 
 void wait_char(char answer[],int time){
-    int safe_counter;
+    volatile int safe_counter;
     while(!(Serial.find(answer))){
 	safe_counter++;
 	if (safe_counter>time){
@@ -88,9 +83,9 @@ void std_connect(String ssid, String pass){
   Serial.println("AT+CWMODE=1");
   wait_char("OK");
   Serial.println("AT+CWJAP_CUR=\"" + ssid + "\",\"" + pass + "\"");
-  wait_char("WIFI CONNECTED", 10);
-  wait_char("WIFI GOT IP", 10);
-  wait_char("OK", 10);
+  wait_char("WIFI CONNECTED", 20);
+  wait_char("WIFI GOT IP", 20);
+  wait_char("OK", 20);
   delay(200);
   check_connection();
 }
