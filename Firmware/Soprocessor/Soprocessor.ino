@@ -21,7 +21,8 @@ GTimer data_request(MS,10000);//Частота запросов для данн�
 GTimer data_send(MS,20000); //Частота отправления данных
 GTimer led_status_update(MS,1000); //Частота обновления для статусного светодиода
 GTimer led_error_update(MS,10000); //Частота обновления для светодиода ошибки
-GTimer wifi_con_update(MS,130000);
+GTimer wifi_con_update(MS,83000);  //Частота проверки наличия подключения
+GTimer wifi_reconnect(MS, 120000); //Частота переконнекта при отсутствии подключения
 
 void update_led(void){
     if (led_status_update.isReady()){
@@ -78,11 +79,19 @@ void wait_char(char answer[],int time){
 }
 
 void std_connect(String ssid, String pass){
+  volatile int safe_counter=0;
+
   Serial.println("AT");
   wait_char("OK");
   Serial.println("AT+CWMODE=1");
   wait_char("OK");
   Serial.println("AT+CWJAP_CUR=\"" + ssid + "\",\"" + pass + "\"");
+  delay(4000);
+  if (Serial.find("WIFI DISCONNECT")){
+      errorflag = 1;
+      Serial.print("EGOR");
+      return;
+  }
   wait_char("WIFI CONNECTED", 20);
   wait_char("WIFI GOT IP", 20);
   wait_char("OK", 20);
@@ -91,6 +100,7 @@ void std_connect(String ssid, String pass){
 }
 
 void send(String api_w, int field, String data){
+    wifi_con_update.stop();
     String get = "GET /update?api_key=" + api_w + "&" + "field" + field + "=" + data;
     Serial.println("AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",80");
     wait_char("OK");
@@ -99,6 +109,7 @@ void send(String api_w, int field, String data){
     delay(300);
     Serial.println(get);
     wait_char("SEND OK");
+    wifi_con_update.resume();
 }
 
 void setup(){
@@ -163,5 +174,9 @@ if (data_send.isReady()){
         send_value = 0;
         break;
     }
+}
+
+if (wifi_con_update.isReady()){
+    check_connection();
 }
 }
