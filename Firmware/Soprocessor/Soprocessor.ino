@@ -89,7 +89,6 @@ void std_connect(String ssid, String pass){
   delay(4000);
   if (Serial.find("WIFI DISCONNECT")){
       errorflag = 1;
-      Serial.print("EGOR");
       return;
   }
   wait_char("WIFI CONNECTED", 20);
